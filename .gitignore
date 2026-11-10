@@ -1,1 +1,6 @@
 .env
+backups/
+exportaciones/
+logs/
+informes/
+users-passwds
