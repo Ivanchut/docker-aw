@@ -1,0 +1,22 @@
+✔ Container docker-aw-db-1 Running                                                                                                             0.0s
+Container docker-aw-wpcli-run-90613de80dd0 Creating 
+Container docker-aw-wpcli-run-90613de80dd0 Created 
+^CSuccess: Created user 4.
+Password: xRcsta&eGz@f*Op2HyVjW817
+[+] run 1/1
+ ✔ Container docker-aw-db-1 Running                                                                                                             0.0s
+Container docker-aw-wpcli-run-719beb4ad971 Creating 
+Container docker-aw-wpcli-run-719beb4ad971 Created 
+Success: Created user 5.
+Password: @NH0rPur!cOe%$!kB!eJEoJn
+[+] run 1/1
+ ✔ Container docker-aw-db-1 Running                                                                                                             0.0s
+Container docker-aw-wpcli-run-b32b0a46f9c9 Creating 
+Container docker-aw-wpcli-run-b32b0a46f9c9 Created 
+Success: Created user 6.
+Password: XpBy%zUfKWW)4ctUYPr9!@M#
+[+] run 1/1
+ ✔ Container docker-aw-db-1 Running                                                                                                             0.0s
+Container docker-aw-wpcli-run-6b2f18e60883 Creating 
+Container docker-aw-wpcli-run-6b2f18e60883 Created 
+Error: Invalid field: role.
