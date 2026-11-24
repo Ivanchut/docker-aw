@@ -282,3 +282,86 @@
 2026/11/24 15:04:27 [notice] 1#1: start worker process 30
 2026/11/24 15:04:27 [notice] 1#1: start worker process 31
 2026/11/24 15:04:27 [notice] 1#1: start worker process 32
+2026/11/24 15:26:38 [notice] 1#1: signal 3 (SIGQUIT) received, shutting down
+2026/11/24 15:26:38 [notice] 24#24: gracefully shutting down
+2026/11/24 15:26:38 [notice] 23#23: gracefully shutting down
+2026/11/24 15:26:38 [notice] 21#21: gracefully shutting down
+2026/11/24 15:26:38 [notice] 25#25: gracefully shutting down
+2026/11/24 15:26:38 [notice] 22#22: gracefully shutting down
+2026/11/24 15:26:38 [notice] 26#26: gracefully shutting down
+2026/11/24 15:26:38 [notice] 27#27: gracefully shutting down
+2026/11/24 15:26:38 [notice] 28#28: gracefully shutting down
+2026/11/24 15:26:38 [notice] 24#24: exiting
+2026/11/24 15:26:38 [notice] 29#29: gracefully shutting down
+2026/11/24 15:26:38 [notice] 30#30: gracefully shutting down
+2026/11/24 15:26:38 [notice] 23#23: exiting
+2026/11/24 15:26:38 [notice] 31#31: gracefully shutting down
+2026/11/24 15:26:38 [notice] 21#21: exiting
+2026/11/24 15:26:38 [notice] 25#25: exiting
+2026/11/24 15:26:38 [notice] 22#22: exiting
+2026/11/24 15:26:38 [notice] 26#26: exiting
+2026/11/24 15:26:38 [notice] 27#27: exiting
+2026/11/24 15:26:38 [notice] 28#28: exiting
+2026/11/24 15:26:38 [notice] 29#29: exiting
+2026/11/24 15:26:38 [notice] 30#30: exiting
+2026/11/24 15:26:38 [notice] 31#31: exiting
+2026/11/24 15:26:38 [notice] 24#24: exit
+2026/11/24 15:26:38 [notice] 22#22: exit
+2026/11/24 15:26:38 [notice] 21#21: exit
+2026/11/24 15:26:38 [notice] 28#28: exit
+2026/11/24 15:26:38 [notice] 26#26: exit
+2026/11/24 15:26:38 [notice] 27#27: exit
+2026/11/24 15:26:38 [notice] 29#29: exit
+2026/11/24 15:26:38 [notice] 31#31: exit
+2026/11/24 15:26:38 [notice] 25#25: exit
+2026/11/24 15:26:38 [notice] 23#23: exit
+2026/11/24 15:26:38 [notice] 30#30: exit
+2026/11/24 15:26:38 [notice] 32#32: gracefully shutting down
+2026/11/24 15:26:38 [notice] 32#32: exiting
+2026/11/24 15:26:38 [notice] 32#32: exit
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 30
+2026/11/24 15:26:38 [notice] 1#1: worker process 23 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: worker process 30 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: worker process 29 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: signal 29 (SIGIO) received
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 23
+2026/11/24 15:26:38 [notice] 1#1: worker process 25 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: worker process 27 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: signal 29 (SIGIO) received
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 25
+2026/11/24 15:26:38 [notice] 1#1: worker process 28 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: signal 29 (SIGIO) received
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 26
+2026/11/24 15:26:38 [notice] 1#1: worker process 26 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: signal 29 (SIGIO) received
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 24
+2026/11/24 15:26:38 [notice] 1#1: worker process 24 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: signal 29 (SIGIO) received
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 31
+2026/11/24 15:26:38 [notice] 1#1: worker process 31 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: worker process 32 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: signal 29 (SIGIO) received
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 21
+2026/11/24 15:26:38 [notice] 1#1: worker process 21 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: signal 17 (SIGCHLD) received from 22
+2026/11/24 15:26:38 [notice] 1#1: worker process 22 exited with code 0
+2026/11/24 15:26:38 [notice] 1#1: exit
+2026/11/24 15:33:42 [notice] 1#1: using the "epoll" event method
+2026/11/24 15:33:42 [notice] 1#1: nginx/1.30.5
+2026/11/24 15:33:42 [notice] 1#1: built by gcc 14.2.0 (Debian 14.2.0-19) 
+2026/11/24 15:33:42 [notice] 1#1: OS: Linux 7.2.11-zen1-1-zen
+2026/11/24 15:33:42 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1024:524288
+2026/11/24 15:33:42 [notice] 1#1: start worker processes
+2026/11/24 15:33:42 [notice] 1#1: start worker process 21
+2026/11/24 15:33:42 [notice] 1#1: start worker process 22
+2026/11/24 15:33:42 [notice] 1#1: start worker process 23
+2026/11/24 15:33:42 [notice] 1#1: start worker process 24
+2026/11/24 15:33:42 [notice] 1#1: start worker process 25
+2026/11/24 15:33:42 [notice] 1#1: start worker process 26
+2026/11/24 15:33:42 [notice] 1#1: start worker process 27
+2026/11/24 15:33:42 [notice] 1#1: start worker process 28
+2026/11/24 15:33:42 [notice] 1#1: start worker process 29
+2026/11/24 15:33:42 [notice] 1#1: start worker process 30
+2026/11/24 15:33:42 [notice] 1#1: start worker process 31
+2026/11/24 15:33:42 [notice] 1#1: start worker process 32
+2026/11/24 15:38:14 [warn] 23#23: *1 an upstream response is buffered to a temporary file /var/cache/nginx/fastcgi_temp/1/00/0000000001 while reading upstream, client: 172.20.0.1, server: _, request: "GET /index.php?rest_route=%2Fwp%2Fv2%2Fblock-patterns%2Fpatterns&_locale=user HTTP/1.1", upstream: "fastcgi://172.20.0.3:9000", host: "localhost:8080", referrer: "http://localhost:8080/wp-admin/site-editor.php?p=%2Ftemplate"
