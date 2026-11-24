@@ -1,353 +1,178 @@
-# Copias de seguridad
-**Alumno/a:** <nombre>
-**Rama:** `ra3-admin`
-**Fecha de realización:** <AAAA-MM-DD>
-**Entorno:** <mi equipo>
+# RA3 · Práctica 3 · Importar y exportar contenidos en distintos formatos
 
----
+**Módulo:** Implantación de Aplicaciones Web (0376) · ASIR 2º
+**Resultado de aprendizaje:** RA3 · Administración de gestores de contenidos (CE e)
+**Rama:** `sesion16`
 
-## 1. Qué se copia y qué no
+## Objetivo
 
-| Pieza | Dónde está | ¿Se copia? |
+Mover contenidos y usuarios entre sitios WordPress usando cuatro formatos (WXR, CSV, JSON y SQL) y saber cuándo conviene cada uno.
+
+| Formato | Qué lleva | Para qué sirve |
 |---|---|---|
-| Base de datos (entradas, usuarios, ajustes, roles) | Volumen `db_data` | Sí: volcado SQL (`db_*.sql.gz`) |
-| `wp-content` (temas, plugins, imágenes subidas) | Volumen `wp_data` | Sí: `wp-content_*.tar.gz` |
-| Núcleo de WordPress | Volumen `wp_data` | No: lo trae la imagen |
-| `wp-config.php` | Volumen `wp_data` | No: lo genera el compose |
-| `docker-compose.yml`, `nginx/`, `scripts/` | Repositorio | Ya está en GitHub |
-| `.env` | Mi equipo | Aparte, nunca en GitHub |
+| **WXR** (XML de WordPress) | Entradas, páginas, categorías, etiquetas, comentarios, autores | Pasar contenido de un WordPress a otro |
+| **CSV** | Una tabla, una fila por elemento | Listados en hoja de cálculo e importación de usuarios |
+| **JSON** (API REST) | Datos estructurados | Que otras aplicaciones lean o escriban en el sitio |
+| **SQL** | La base de datos completa | Copias de seguridad y migraciones completas |
 
-Con el repositorio, el `.env`, un volcado de la base de datos y una copia de `wp-content` se reconstruye
-el sitio entero en cualquier máquina con Docker.
+## Entorno
 
----
-
-## 3. Copia manual de un volumen (técnica general)
+- Stack Docker Compose con tres contenedores: `db` (MariaDB 11), `wordpress` (WordPress 7.1.2, PHP 8.3-FPM) y `nginx` (puerto `8080`).
+- WP-CLI mediante el atajo `./wp` (contenedor `wpcli`).
+- Carpeta `datos/` para los ficheros de entrada y `exportaciones/` para las salidas (esta última está en `.gitignore`).
 
 ```bash
-docker volume ls
+sudo docker-compose up -d
+docker-compose ps
+mkdir -p exportaciones
 ```
 
-```text
-DRIVER    VOLUME NAME
-local     b1df958f5cce49fbd1ce6f1d46092ee49c39c2bfb398bff6410b4c1aa3f2d5cc
-local     cdff8803186c8aed749e58e8858ee5e5ea1b3b9ae252592ef6a69827a1b3a4ad
-local     docker-aw_db_data
-local     docker-aw_wp_data
-local     docker-compose_db_data
-local     docker-session10_db_data
-local     docker-session10_wp_data
-```
-
-Nombre de mi volumen de WordPress: `docker-aw_wp_data`
+## Paso 2 · Exportar el sitio en WXR
 
 ```bash
-mkdir -p backups
-docker run --rm \
-  -v <NOMBRE>_wp_data:/origen:ro \
-  -v "$PWD/backups":/destino \
-  alpine tar -czf /destino/volumen_wp_data.tar.gz -C /origen .
-ls -lh backups/
+./wp export --stdout > exportaciones/sitio_$(date +%Y%m%d).xml
+grep -c '<item>' exportaciones/sitio_*.xml
+grep -o '<wp:post_type>.*</wp:post_type>' exportaciones/sitio_*.xml | sort | uniq -c
 ```
 
-```text
-latest: Pulling from library/alpine
-881fc932939e: Already exists 
-c35a7d82b8fa: Download complete 
-86ff264fe568: Download complete 
-Digest: sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
-Status: Downloaded newer image for alpine:latest
-total 48M
--rw-r--r-- 1 root root 48M nov 17 16:38 volumen_wp_data.tar.gz
+**Resultado:** 18 elementos exportados.
+
+| Tipo | Nº |
+|---|---|
+| `flamingo_contact` | 8 |
+| `page` | 3 |
+| `post` | 3 |
+| `llar_digest_day` | 1 |
+| `wpcf7_contact_form` | 1 |
+| `wp_global_styles` | 1 |
+| `wp_navigation` | 1 |
+
+## Paso 3 · Importar contenidos de ejemplo (WXR)
+
+Se copió `contenidos_asir.xml` a `datos/` (hizo falta `sudo cp` por permisos en la carpeta).
+
+```bash
+./wp plugin install wordpress-importer --activate
+./wp import /datos/contenidos_asir.xml --authors=create
+./wp post list --post_type=post,page --fields=ID,post_type,post_title,post_author
+./wp term list category --fields=name,count
 ```
 
-**Explicación con mis palabras:** <Un volumen no se puede leer directamente; se monta en un contenedor
-alpine desechable (en solo lectura) junto con la carpeta backups y se empaqueta con tar.>
+**Resultado:** importados 8 elementos (6 entradas y 2 páginas). Mensaje final: `Success: Finished importing from '/datos/contenidos_asir.xml' file.`
 
-Tamaño obtenido de `volumen_wp_data.tar.gz`: <48 MB>
+| ID | Tipo | Título |
+|---|---|---|
+| 101 | post | Jornada de puertas abiertas del ciclo ASIR |
+| 102 | post | Charla: contenedores en producción |
+| 103 | post | Nuevo armario de comunicaciones en el aula |
+| 104 | post | Práctica: el stack de WordPress en contenedores |
+| 105 | post | Empresas colaboradoras para la formación en empresa |
+| 106 | post | Hackathon de ciberseguridad |
+| 107 | page | Horario del ciclo |
+| 108 | page | Normas del aula técnica |
 
----
+Categorías tras la importación:
 
-## 4. Volcado manual de la base de datos
+| Categoría | Entradas |
+|---|---|
+| Eventos | 3 |
+| Noticias | 3 |
+| Prácticas | 1 |
+| Sin categoría | 3 |
+
+## Paso 4 · Importar usuarios desde CSV
+
+```bash
+head -3 datos/usuarios.csv
+./wp user import-csv /datos/usuarios.csv
+./wp user list --fields=user_login,display_name,roles
+```
+
+**Resultado:**
+
+- Actualizados (ya existían): `coord.web`, `profe.redes`, `profe.so`, `alumna.fct`, `familia.garcia`.
+- Creados: `profe.bd`, `alumno.fct`, `exalumno.2025`.
+- Total final: 11 usuarios (roles: administrator, editor, author, contributor, subscriber y `revisor`).
+
+El CSV no incluye contraseñas: WordPress genera una aleatoria para cada usuario nuevo. Es lo correcto, porque nunca se deben pasar contraseñas en un fichero de texto.
+
+## Paso 5 · Exportar listados en CSV y JSON
+
+```bash
+./wp post list --post_type=post --fields=ID,post_title,post_date,post_status --format=csv > exportaciones/entradas.csv
+./wp user list --fields=user_login,user_email,roles --format=json > exportaciones/usuarios.json
+cat exportaciones/entradas.csv
+python3 -m json.tool exportaciones/usuarios.json | head -20
+```
+
+**Resultado:**
+
+- `entradas.csv`: cabecera `ID,post_title,post_date,post_status` y 9 entradas, todas en estado `publish`.
+- `usuarios.json`: un objeto por usuario con `user_login`, `user_email` y `roles`.
+
+El mismo dato sale en distinto formato según quién lo vaya a usar (`--format=table|csv|json|yaml|count`).
+
+## Paso 6 · JSON desde la API REST
+
+```bash
+curl -s "http://localhost:8080/wp-json/wp/v2/posts?per_page=3&_fields=id,title,link" | python3 -m json.tool
+curl -s "http://localhost:8080/wp-json/wp/v2/users?_fields=id,name" | python3 -m json.tool
+```
+
+**Incidencia:** ambas órdenes devolvieron `Expecting value: line 1 column 1 (char 0)`, es decir, `/wp-json/` no respondía JSON porque los enlaces permanentes no están activos.
+
+**Solución:** usar la ruta alternativa `?rest_route=`:
+
+```bash
+curl -s "http://localhost:8080/?rest_route=/wp/v2/posts" | python3 -m json.tool
+```
+
+Con ella la API devolvió las entradas en JSON (campos `id`, `title`, `content`, `author`, `categories`, `_links`…).
+
+## Paso 7 · SQL: exportar una tabla y entender el riesgo
 
 ```bash
 docker compose exec -T db sh -c \
-  'mariadb-dump --single-transaction --no-tablespaces -u"$WP_DB_USER" -p"$WP_DB_PASSWORD" "$WP_DB_NAME"' \
-  | gzip > backups/prueba.sql.gz
-zcat backups/prueba.sql.gz | head -40
-zcat backups/prueba.sql.gz | grep -c 'CREATE TABLE'
+ 'mariadb-dump --no-tablespaces -u"$WP_DB_USER" -p"$WP_DB_PASSWORD" "$WP_DB_NAME" wp_users' \
+ > exportaciones/wp_users.sql
+grep -o "'\$wp\$[^']*'" exportaciones/wp_users.sql | head -3
 ```
 
-Primeras líneas del volcado:
+**Resultado:** el volcado contiene las contraseñas cifradas con bcrypt (cadenas que empiezan por `$wp$2y$10$…`). No se pueden descifrar, pero sí atacar por fuerza bruta si alguien obtiene el fichero.
 
-```text
-/*M!999999\- enable the sandbox mode */ 
--- MariaDB dump 10.20-11.8.9-MariaDB, for debian-linux-gnu (x86_64)
---
--- Host: localhost    Database: wp_db
--- ------------------------------------------------------
--- Server version	11.8.9-MariaDB-ubu2404
+**Por qué `backups/` y `exportaciones/` están en `.gitignore`:** para que estos ficheros nunca se publiquen en el repositorio. Se comprobó con `git status`: ninguna de las dos carpetas aparece.
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*M!100616 SET @OLD_NOTE_VERBOSITY=@@NOTE_VERBOSITY, NOTE_VERBOSITY=0 */;
+## Paso 8 · Intercambio con la pareja
 
---
--- Table structure for table `wp_cmplz_cookiebanners`
---
+> **Pendiente de documentar.** Este paso se hace desde el panel y no aparece en la salida de comandos.
 
-DROP TABLE IF EXISTS `wp_cmplz_cookiebanners`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `wp_cmplz_cookiebanners` (
-  `ID` int(11) NOT NULL AUTO_INCREMENT,
-  `title` text NOT NULL,
-  `banner_version` int(11) NOT NULL,
-  `default` int(11) NOT NULL,
-  `position` text NOT NULL,
-  `checkbox_style` text NOT NULL,
-  `use_logo` text NOT NULL,
-  `logo_attachment_id` text NOT NULL,
-  `close_button` text NOT NULL,
-  `revoke` text NOT NULL,
-  `manage_consent_options` text NOT NULL,
-  `header` text NOT NULL,
-  `dismiss` text NOT NULL,
-  `save_preferences` text NOT NULL,
-18
-```
+1. Crear una entrada en la categoría **Prácticas** que explique en cinco líneas para qué sirve cada formato.
+2. Exportarla desde *Herramientas → Exportar → Entradas → Categoría: Prácticas*.
+3. Pasar el fichero a la pareja.
+4. Importar el fichero de la pareja desde *Herramientas → Importar → WordPress*.
 
-Número de tablas (`CREATE TABLE`): <18>
-
-**Explicación con mis palabras:** <mariadb-dump se ejecuta dentro del contenedor db, escribe SQL por la
-salida estándar y gzip lo comprime en mi equipo. Uso el usuario de WordPress y no root (mínimo privilegio).>
-
-Problemas encontrados y cómo los resolví: <ninguno / ...>
-
----
-
-## 5. Script `scripts/backup.sh`
-
-El script guarda en `backups/` dos ficheros con la misma marca de fecha y conserva solo las últimas 7 copias:
-
-- `db_AAAAMMDD-HHMMSS.sql.gz`: volcado de la base de datos.
-- `wp-content_AAAAMMDD-HHMMSS.tar.gz`: temas, plugins y medios subidos.
-
-| Parte | Qué hace |
-|---|---|
-| `set -euo pipefail` | Detiene el script ante cualquier error, incluso dentro de una tubería |
-| `cd "$(dirname "$0")/.."` | Se coloca en la raíz del repositorio, se ejecute desde donde se ejecute |
-| `trap ... ERR` | Si algo falla, borra los ficheros incompletos |
-| `gzip -t` y `grep -c 'CREATE TABLE'` | Verifica que la copia se descomprime y que el volcado tiene tablas |
-| Rotación | Borra las copias que sobrepasan las 7 más recientes |
+## Control de versiones
 
 ```bash
-chmod +x ../scripts/backup.sh
-../scripts/backup.sh
-ls -lh backups/
+git add .
+git commit -m "practica 3 importar e exportar"
+git push origin sesion16
 ```
 
-```text
-== Copia de seguridad 20261117-170034 ==
--> Volcando la base de datos...
--> Empaquetando wp-content...
-OK. Copia guardada:
--rw-r--r-- 1 vanxu vanxu 257K nov 17 17:00 backups/db_20261117-170034.sql.gz
--rw-r--r-- 1 vanxu vanxu  27M nov 17 17:00 backups/wp-content_20261117-170034.tar.gz
-Copias disponibles: 1 (se conservan 7)
-```
+Commit `cb62f2d` en la rama `sesion16` con `datos/contenidos_asir.xml` y `datos/usuarios.csv`.
 
-- Fichero de base de datos generado: `<db_20261117-170034.sql.gz 257KB>`
-- Fichero de wp-content generado: `<wp-content_20261117-170034.tar.gz 27MB>`
-- ¿Misma marca de fecha en ambos?: <sí>
+## Incidencias y soluciones
 
----
+| Problema | Causa | Solución |
+|---|---|---|
+| `cp: Permiso denegado` al copiar a `datos/` | La carpeta pertenece a otro usuario (contenedor) | `sudo cp ...` |
+| `Expecting value` con `/wp-json/` | Enlaces permanentes no activos | Usar `/?rest_route=/wp/v2/posts` |
+| `git commit` sin cambios | Los ficheros no estaban añadidos al índice | `git add .` antes del commit |
+| `git push`: `Connection timed out` (puerto 22) | Fallo de red puntual | Repetir el `push`, que funcionó al segundo intento |
 
-## 6. Prueba de restauración
+## Conclusiones
 
-### 6.1 Copia justo antes del desastre
-
-```bash
-./scripts/backup.sh
-```
-
-Marca de fecha de esta copia: `<nov 17 17:00>`
-
-### 6.2 Estado antes del desastre
-
-```bash
-./wp post list --post_type=post --fields=ID,post_title
-./wp plugin list
-```
-
-```text
-[+] run 1/1
- ✔ Container docker-aw-db-1 Running                                                  0.0s
-Container docker-aw-wpcli-run-482517c12147 Creating 
-Container docker-aw-wpcli-run-482517c12147 Created 
-ID	post_title
-13	profe de redes
-8	Mi primera semana en practicas
-1	¡Hola, mundo!
-[+] run 1/1
- ✔ Container docker-aw-db-1 Running                                                  0.0s
-Container docker-aw-wpcli-run-79d200e2a334 Creating 
-Container docker-aw-wpcli-run-79d200e2a334 Created 
-name	status	update	version	update_version	auto_update
-complianz-gdpr	active	none	7.5.7		off
-contact-form-7	active	none	6.2.5		off
-flamingo	active	none	2.6.4		off
-limit-login-attempts-reloaded	active	available	3.3.10	3.4.3	off
-simple-history	active	none	5.36.0		off
-```
-
-### 6.3 Desastre controlado
-
-```bash
-./wp post delete <ID> --force
-./wp plugin delete flamingo
-```
-
-- Entrada borrada: <ID y título>
-- Plugin borrado: flamingo
-
-Comprobación de que se ha borrado:
-
-```text
-[+] run 1/1
- ✔ Container docker-aw-db-1 Running                                                                 0.0s
-Container docker-aw-wpcli-run-9e728a07a62c Creating 
-Container docker-aw-wpcli-run-9e728a07a62c Created 
-Deleted 'flamingo' plugin.
-Success: Deleted 1 of 1 plugins.
-```
-
-### 6.4 Restauración
-
-```bash
-./scripts/restore.sh                      # lista las copias disponibles
-./scripts/restore.sh <AAAAMMDD-HHMMSS>    # restaura la copia indicada
-```
-
-```text
-Uso: ./scripts/restore.sh FECHA
-Copias disponibles:
-20261117-170034
-Se va a SOBRESCRIBIR la base de datos y wp-content con la copia 20261117-170034.
-Escribe SI (en mayúsculas) para continuar: SI
--> Restaurando la base de datos...
--> Restaurando wp-content...
-OK. Restaurada la copia 20261117-170034. Recarga el sitio en el navegador.
-```
-
-### 6.5 Comprobación tras restaurar
-
-```bash
-./wp post list --post_type=post --fields=ID,post_title
-./wp plugin list
-```
-
-```text
-[+] run 1/1
- ✔ Container docker-aw-db-1 Running                                     0.0s
-Container docker-aw-wpcli-run-b3925dcda858 Creating 
-Container docker-aw-wpcli-run-b3925dcda858 Created 
-ID	post_title
-13	profe de redes
-8	Mi primera semana en practicas
-1	¡Hola, mundo!
-[+] run 1/1
- ✔ Container docker-aw-db-1 Running                                     0.0s
-Container docker-aw-wpcli-run-664070416b11 Creating 
-Container docker-aw-wpcli-run-664070416b11 Created 
-name	status	update	version	update_version	auto_update
-complianz-gdpr	active	none	7.5.7		off
-contact-form-7	active	none	6.2.5		off
-flamingo	active	none	2.6.4		off
-limit-login-attempts-reloaded	active	available	3.3.10	3.4.3	off
-simple-history	active	none	5.36.0		off
-```
-
----
-
-## 7. Automatización con cron
-
-```bash
-crontab -e
-crontab -l
-```
-
-```text
-PEGA AQUÍ LA SALIDA de crontab -l
-```
-
-Línea añadida (hace copia martes y miércoles a las 13:30):
-
-```cron
-30 13 * * 2,3 cd $HOME/<carpeta-del-repo> && ./scripts/backup.sh >> backups/backup.log 2>&1
-```
-
-Cron no carga el PATH completo ni se coloca en mi carpeta, por eso la línea empieza por `cd`.
-
-> En Codespaces no se usa cron (la máquina se para). Allí se ejecuta `./scripts/backup.sh` al final de
-> cada sesión y se descarga la carpeta `backups` de vez en cuando.
-
----
-
-## 8. Versionado: el script sí, las copias no
-
-```bash
-git status
-git add scripts/ .gitignore README.md
-git commit -m "SESION15: script de copias y restauración"
-git push
-```
-
-```text
-PEGA AQUÍ LA SALIDA de git status (backups/ NO debe aparecer)
-```
-
----
-
-## 9. Guía rápida
-
-### Hacer una copia
-
-```bash
-./scripts/backup.sh
-```
-
-Las copias quedan en `backups/` (se conservan las 7 últimas). La carpeta está en `.gitignore`.
-
-### Restaurar una copia
-
-```bash
-./scripts/restore.sh                      # lista las copias
-./scripts/restore.sh AAAAMMDD-HHMMSS      # restaura esa copia
-```
-
-Pide confirmación escribiendo `SI`, porque sobrescribe el estado actual (base de datos y `wp-content`).
-
-### Reconstruir el sitio en otra máquina
-
-1. Clonar el repositorio y cambiar a la rama `ra3-admin`.
-2. Copiar el `.env` (se guarda aparte).
-3. `docker compose up -d`
-4. Copiar los ficheros de `backups/` a la nueva máquina y ejecutar `./scripts/restore.sh <marca>`.
-
-### Problemas frecuentes
-
-| Síntoma | Solución |
-|---|---|
-| `el servicio 'db' no está en marcha` | `docker compose up -d` |
-| `Access denied for user` | La contraseña del `.env` no coincide con la del usuario en MariaDB |
-| `falta WP_DB_USER en .env` | Revisar el `.env` (práctica 1, paso 3) |
-| Tras restaurar el navegador no muestra los cambios | Recargar sin caché (Ctrl+F5) |
-| Tablas creadas después de la copia siguen existiendo | Es normal: el volcado solo recrea las tablas que contiene |
+- **WXR** es el formato adecuado para mover contenido (entradas, páginas, términos) entre WordPress.
+- **CSV** es cómodo para usuarios y listados, pero solo representa una tabla.
+- **JSON** permite integrar el sitio con otras aplicaciones y es de lectura pública para el contenido publicado.
+- **SQL** es la copia más completa, y por eso la más delicada: contiene los hashes de contraseñas y debe protegerse y excluirse del repositorio.
