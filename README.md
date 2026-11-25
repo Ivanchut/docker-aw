@@ -1,178 +1,577 @@
-# RA3 · Práctica 3 · Importar y exportar contenidos en distintos formatos
+# Memoria · RA3 · Práctica 5: Actualizaciones controladas e informes de acceso
 
-**Módulo:** Implantación de Aplicaciones Web (0376) · ASIR 2º
-**Resultado de aprendizaje:** RA3 · Administración de gestores de contenidos (CE e)
-**Rama:** `sesion16`
 
-## Objetivo
 
-Mover contenidos y usuarios entre sitios WordPress usando cuatro formatos (WXR, CSV, JSON y SQL) y saber cuándo conviene cada uno.
+---
 
-| Formato | Qué lleva | Para qué sirve |
+## Índice
+
+1. [Inventario de versiones](#paso-1--inventario-qué-versiones-tienes)
+2. [Copia de seguridad y rama de trabajo](#paso-2--antes-de-tocar-nada-copia-y-commit)
+3. [Capa 1: plugins](#paso-3--capa-1-plugins)
+4. [Capa 2: imagen (PHP 8.3 → 8.4)](#paso-4--capa-2-la-imagen-php-83--84)
+5. [Capa 3: núcleo de WordPress](#paso-5--capa-3-el-núcleo-de-wordpress)
+6. [Verificación, fusión o vuelta atrás](#paso-6--verificar-fusionar-o-volver-atrás)
+7. [Generación de tráfico](#paso-7--generar-tráfico-para-el-informe)
+8. [Lectura de una línea del log](#paso-8--leer-una-línea-del-log)
+9. [Informe de accesos](#paso-9--el-informe-scriptsinforme-accessh)
+10. [Simple History](#paso-10--el-otro-registro-simple-history)
+11. [Cierre: informe y pull request](#paso-11--cierre-del-bloque-informe-y-pull-request)
+12. [Conclusiones](#conclusiones)
+
+> **Cómo usar esta plantilla:** debajo de cada orden hay un bloque vacío para pegar la salida real. Donde veas
+> `_(…)_` o una pregunta, escribe tu respuesta con tus palabras. Para las capturas, guarda las imágenes en
+> `docs/img/` y enlázalas con `![descripción](docs/img/nombre.png)`.
+
+---
+
+## Paso 1 · Inventario: qué versiones tienes
+
+**Objetivo:** conocer las versiones de cada capa antes de actualizar (imágenes, PHP, núcleo, plugins y temas).
+
+### 1.1 Imágenes del stack
+
+```bash
+docker compose images
+```
+
+```text
+CONTAINER               REPOSITORY          TAG                 PLATFORM            IMAGE ID            SIZE                CREATED
+docker-aw-db-1          mariadb             11                  linux/amd64         79d59758afc9        450MB               2 months ago
+docker-aw-nginx-1       nginx               stable              linux/amd64         9bf97bd7714f        239MB               7 weeks ago
+docker-aw-wordpress-1   wordpress           7.1.2-php8.3-fpm    linux/amd64         ce765b661397        1.1GB               7 weeks ago
+```
+
+### 1.2 Versión de PHP
+
+```bash
+docker compose exec wordpress php -v | head -1
+```
+
+```text
+PHP 8.3.35 (cli) (built: Oct  6 2026 01:28:43) (NTS)
+```
+
+### 1.3 Versión del núcleo de WordPress
+
+```bash
+./wp core version --extra
+./wp core check-update
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 1.4 Plugins y temas
+
+```bash
+./wp plugin list --fields=name,version,update,update_version
+./wp theme list --fields=name,version,update
+```
+
+```text
+(pega aquí la salida)
+```
+
+**Comprobación:** PHP 8.3.x, WordPress 7.1.x y columna `update` con `none` o `available`. ☐ Correcto
+
+> 📌 Copia estas versiones en la tabla «Versión antes» del [resumen de versiones](#resumen-de-versiones-sección-7-del-informe).
+
+---
+
+## Paso 2 · Antes de tocar nada: copia y commit
+
+**Procedimiento de actualización controlada:**
+1) inventario → 2) copia → 3) rama → 4) actualizar una capa cada vez → 5) verificar → 6) fusionar o volver atrás.
+
+```bash
+./scripts/backup.sh
+```
+
+```text
+(pega aquí la salida)
+```
+
+```bash
+git status
+```
+
+```text
+(pega aquí la salida; debe estar limpio)
+```
+
+```bash
+git switch -c ra3-actualizacion
+```
+
+```text
+(pega aquí la salida)
+```
+
+```bash
+ls -lh backups/
+```
+
+```text
+(pega aquí la salida; debe aparecer la copia nueva)
+```
+
+**Nombre de la copia creada hoy:** `AAAAMMDD-HHMMSS` → _______________
+
+**Pregunta:** ¿Por qué no se debe actualizar sin una copia hecha ese mismo día?
+
+_(Tu respuesta)_
+
+---
+
+## Paso 3 · Capa 1: plugins
+
+### 3.1 Instalar una versión anterior de Contact Form 7
+
+> Sustituye `?.?.?` por la versión anterior a la última estable.
+
+```bash
+./wp plugin install contact-form-7 --version=?.?.? --force
+```
+
+```text
+(pega aquí la salida)
+```
+
+```bash
+./wp plugin list --name=contact-form-7 --fields=name,version,update_version
+```
+
+```text
+(pega aquí la salida; update_version debe mostrar la versión actual)
+```
+
+### 3.2 Simulación de la actualización
+
+```bash
+./wp plugin update --all --dry-run
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 3.3 Actualización real
+
+```bash
+./wp plugin update --all
+```
+
+```text
+(pega aquí la salida; tabla con old_version, new_version y Updated)
+```
+
+### 3.4 Verificación del formulario de Contacto
+
+- ☐ El formulario de Contacto se muestra correctamente.
+- ☐ He enviado un mensaje de prueba.
+- ☐ El mensaje aparece guardado en Flamingo.
+
+![Captura del mensaje en Flamingo](docs/img/paso3-flamingo.png)
+
+**Pregunta:** ¿Qué diferencia hay entre `--dry-run` y la actualización normal? ¿Por qué es útil?
+
+_(Tu respuesta)_
+
+---
+
+## Paso 4 · Capa 2: la imagen (PHP 8.3 → 8.4)
+
+### 4.1 Cambios en `docker-compose.yml`
+
+| Servicio | Antes | Después |
 |---|---|---|
-| **WXR** (XML de WordPress) | Entradas, páginas, categorías, etiquetas, comentarios, autores | Pasar contenido de un WordPress a otro |
-| **CSV** | Una tabla, una fila por elemento | Listados en hoja de cálculo e importación de usuarios |
-| **JSON** (API REST) | Datos estructurados | Que otras aplicaciones lean o escriban en el sitio |
-| **SQL** | La base de datos completa | Copias de seguridad y migraciones completas |
-
-## Entorno
-
-- Stack Docker Compose con tres contenedores: `db` (MariaDB 11), `wordpress` (WordPress 7.1.2, PHP 8.3-FPM) y `nginx` (puerto `8080`).
-- WP-CLI mediante el atajo `./wp` (contenedor `wpcli`).
-- Carpeta `datos/` para los ficheros de entrada y `exportaciones/` para las salidas (esta última está en `.gitignore`).
+| wordpress | `wordpress:7.1-php8.3-fpm` | `wordpress:7.1-php8.4-fpm` |
+| wp-cli | `wordpress:cli-php8.3` | `wordpress:cli-php8.4` |
 
 ```bash
-sudo docker-compose up -d
-docker-compose ps
-mkdir -p exportaciones
+git diff docker-compose.yml
 ```
 
-## Paso 2 · Exportar el sitio en WXR
+```diff
+(pega aquí el diff)
+```
+
+### 4.2 Descarga y recreación
 
 ```bash
-./wp export --stdout > exportaciones/sitio_$(date +%Y%m%d).xml
-grep -c '<item>' exportaciones/sitio_*.xml
-grep -o '<wp:post_type>.*</wp:post_type>' exportaciones/sitio_*.xml | sort | uniq -c
+docker compose pull wordpress
 ```
 
-**Resultado:** 18 elementos exportados.
+```text
+(pega aquí la salida)
+```
 
-| Tipo | Nº |
+```bash
+docker compose up -d
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 4.3 Comprobación de versiones
+
+```bash
+docker compose exec wordpress php -v | head -1
+./wp core version
+```
+
+```text
+(pega aquí la salida: PHP 8.4.x, pero WordPress con la MISMA versión que antes)
+```
+
+### 4.4 Explicación (obligatoria)
+
+**Pregunta:** ¿Por qué, tras cambiar la imagen a PHP 8.4, `./wp core version` muestra la misma versión de WordPress que antes?
+Explícalo con tus palabras.
+
+_(Tu respuesta. Pista: ¿qué hace la imagen con los ficheros de WordPress y cuándo? ¿Dónde viven esos ficheros ahora?)_
+
+---
+
+## Paso 5 · Capa 3: el núcleo de WordPress
+
+### 5.1 Búsqueda de actualizaciones
+
+```bash
+./wp core check-update
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 5.2 Actualización de mantenimiento (solo si hay una 7.1.x nueva)
+
+```bash
+./wp core update --minor
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 5.3 Actualización de la base de datos
+
+```bash
+./wp core update-db
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 5.4 Verificación de integridad
+
+```bash
+./wp core verify-checksums
+```
+
+```text
+(pega aquí la salida; esperado: Success: WordPress installation verifies against checksums.)
+```
+
+**Preguntas:**
+
+1. ¿Qué limita `--minor` y por qué una versión mayor (7.2) se planifica aparte?
+
+   _(Tu respuesta)_
+
+2. Si `verify-checksums` indicase «doesn't verify against checksum» en un servidor real, ¿qué significaría?
+
+   _(Tu respuesta)_
+
+---
+
+## Paso 6 · Verificar, fusionar o volver atrás
+
+### 6.1 Recorrido de verificación
+
+- ☐ Portada
+- ☐ Una entrada
+- ☐ Página Contacto (mensaje enviado)
+- ☐ Panel de administración
+- ☐ Feed (`curl -s localhost:8080/feed/ | head`)
+- ☐ Revisado `logs/error.log`
+
+```bash
+tail -20 logs/error.log
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 6.2 Resultado
+
+☐ Todo funciona → fusionar  ☐ Algo falla → volver atrás
+
+**Si todo va bien:**
+
+```bash
+git commit -am "RA3: PHP 8.4 y actualizaciones"
+git switch ra3-admin && git merge ra3-actualizacion && git push
+```
+
+```text
+(pega aquí la salida)
+```
+
+```bash
+git log --oneline | head
+```
+
+```text
+(pega aquí la salida; debe verse el commit de la actualización en ra3-admin)
+```
+
+**Si algo falla (rellenar solo si ocurre):**
+
+```bash
+git restore docker-compose.yml && docker compose up -d
+./scripts/restore.sh AAAAMMDD-HHMMSS
+```
+
+```text
+(pega aquí la salida)
+```
+
+**Problema encontrado y cómo lo solucioné:** _(o «Sin incidencias»)_
+
+---
+
+## Resumen de versiones (sección 7 del informe)
+
+| Capa | Componente | Versión antes | Versión después | Método de actualización |
+|---|---|---|---|---|
+| Imagen | PHP | 8.3.x | 8.4.x | Cambio de etiqueta en `docker-compose.yml` |
+| Imagen | nginx | | | |
+| Imagen | MariaDB | | | |
+| Núcleo | WordPress | 7.1.x | | `wp core update --minor` |
+| Plugin | Contact Form 7 | | | `wp plugin update --all` |
+| Plugin | (otros) | | | |
+| Tema | (tema activo) | | | |
+
+---
+
+## Paso 7 · Generar tráfico para el informe
+
+### 7.1 Tráfico de la pareja
+
+- Dirección desde la que accedió mi pareja: _______________
+- Intentos de acceso fallidos realizados (mínimo 3): _____
+
+### 7.2 Tráfico generado con curl
+
+```bash
+for i in $(seq 1 30); do curl -s -o /dev/null "http://localhost:8080/?p=$i"; done
+curl -s -o /dev/null http://localhost:8080/no-existe
+```
+
+```bash
+tail -5 logs/access.log
+```
+
+```text
+(pega aquí la salida)
+```
+
+> Si `logs/access.log` está vacío: `docker compose up -d --force-recreate nginx`.
+
+---
+
+## Paso 8 · Leer una línea del log
+
+### 8.1 Formato de log de nginx
+
+```bash
+docker compose exec nginx grep -A3 log_format /etc/nginx/nginx.conf
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 8.2 Análisis de una línea real
+
+Línea elegida de mi `logs/access.log`:
+
+```text
+(pega aquí una línea real)
+```
+
+| Campo | Valor en mi línea | Significado |
+|---|---|---|
+| `$remote_addr` | | IP que hace la petición |
+| `[$time_local]` | | Fecha y hora |
+| `"$request"` | | Método, URL y protocolo |
+| `$status` | | Código de respuesta |
+| `$body_bytes_sent` | | Bytes enviados |
+| `"$http_referer"` | | Página de la que viene |
+| `"$http_user_agent"` | | Navegador o programa |
+| `"$http_x_forwarded_for"` | | IP real si hay proxy delante |
+
+**Pregunta:** ¿Cómo distingues en el log un intento fallido de acceso de uno correcto en `/wp-login.php`?
+
+_(Tu respuesta. Pista: método y código de estado.)_
+
+---
+
+## Paso 9 · El informe: `scripts/informe-accesos.sh`
+
+### 9.1 Preparación
+
+```bash
+chmod +x scripts/informe-accesos.sh
+ls -l scripts/informe-accesos.sh
+```
+
+```text
+(pega aquí la salida)
+```
+
+### 9.2 Ejecución
+
+```bash
+./scripts/informe-accesos.sh
+```
+
+```text
+(pega aquí la salida completa)
+```
+
+### 9.3 Resultados del resumen en terminal
+
+| Dato | Valor |
 |---|---|
-| `flamingo_contact` | 8 |
-| `page` | 3 |
-| `post` | 3 |
-| `llar_digest_day` | 1 |
-| `wpcf7_contact_form` | 1 |
-| `wp_global_styles` | 1 |
-| `wp_navigation` | 1 |
+| Peticiones totales | |
+| Direcciones IP distintas | |
+| Intentos `POST /wp-login.php` | |
+| IP con más intentos de acceso | |
 
-## Paso 3 · Importar contenidos de ejemplo (WXR)
+**Códigos de respuesta (resumen):**
 
-Se copió `contenidos_asir.xml` a `datos/` (hizo falta `sudo cp` por permisos en la carpeta).
-
-```bash
-./wp plugin install wordpress-importer --activate
-./wp import /datos/contenidos_asir.xml --authors=create
-./wp post list --post_type=post,page --fields=ID,post_type,post_title,post_author
-./wp term list category --fields=name,count
-```
-
-**Resultado:** importados 8 elementos (6 entradas y 2 páginas). Mensaje final: `Success: Finished importing from '/datos/contenidos_asir.xml' file.`
-
-| ID | Tipo | Título |
+| Código | Nº de peticiones | Interpretación |
 |---|---|---|
-| 101 | post | Jornada de puertas abiertas del ciclo ASIR |
-| 102 | post | Charla: contenedores en producción |
-| 103 | post | Nuevo armario de comunicaciones en el aula |
-| 104 | post | Práctica: el stack de WordPress en contenedores |
-| 105 | post | Empresas colaboradoras para la formación en empresa |
-| 106 | post | Hackathon de ciberseguridad |
-| 107 | page | Horario del ciclo |
-| 108 | page | Normas del aula técnica |
+| 200 | | |
+| 301 / 302 | | |
+| 404 | | |
+| otros | | |
 
-Categorías tras la importación:
+### 9.4 Informe HTML de GoAccess
 
-| Categoría | Entradas |
-|---|---|
-| Eventos | 3 |
-| Noticias | 3 |
-| Prácticas | 1 |
-| Sin categoría | 3 |
+- Fichero generado: `informes/accesos_AAAAMMDD-HHMM.html`
 
-## Paso 4 · Importar usuarios desde CSV
+![Panel general de GoAccess](docs/img/paso9-goaccess-general.png)
 
-```bash
-head -3 datos/usuarios.csv
-./wp user import-csv /datos/usuarios.csv
-./wp user list --fields=user_login,display_name,roles
-```
+![Visitantes / URL más pedidas](docs/img/paso9-goaccess-urls.png)
 
-**Resultado:**
+**Interpretación de los datos** (¿qué URL se piden más?, ¿hay 404?, ¿se ven los intentos fallidos?):
 
-- Actualizados (ya existían): `coord.web`, `profe.redes`, `profe.so`, `alumna.fct`, `familia.garcia`.
-- Creados: `profe.bd`, `alumno.fct`, `exalumno.2025`.
-- Total final: 11 usuarios (roles: administrator, editor, author, contributor, subscriber y `revisor`).
+_(Tu análisis)_
 
-El CSV no incluye contraseñas: WordPress genera una aleatoria para cada usuario nuevo. Es lo correcto, porque nunca se deben pasar contraseñas en un fichero de texto.
+### 9.5 Explicación del script
 
-## Paso 5 · Exportar listados en CSV y JSON
+**Pregunta:** ¿Qué hacen `awk '{print $9}'`, `sort` y `uniq -c` encadenados en el script?
 
-```bash
-./wp post list --post_type=post --fields=ID,post_title,post_date,post_status --format=csv > exportaciones/entradas.csv
-./wp user list --fields=user_login,user_email,roles --format=json > exportaciones/usuarios.json
-cat exportaciones/entradas.csv
-python3 -m json.tool exportaciones/usuarios.json | head -20
-```
+_(Tu respuesta)_
 
-**Resultado:**
+---
 
-- `entradas.csv`: cabecera `ID,post_title,post_date,post_status` y 9 entradas, todas en estado `publish`.
-- `usuarios.json`: un objeto por usuario con `user_login`, `user_email` y `roles`.
+## Paso 10 · El otro registro: Simple History
 
-El mismo dato sale en distinto formato según quién lo vaya a usar (`--format=table|csv|json|yaml|count`).
+### 10.1 Inicios de sesión (Escritorio → Historial → filtro «Inicios de sesión»)
 
-## Paso 6 · JSON desde la API REST
+![Intentos fallidos en Simple History](docs/img/paso10-logins.png)
 
-```bash
-curl -s "http://localhost:8080/wp-json/wp/v2/posts?per_page=3&_fields=id,title,link" | python3 -m json.tool
-curl -s "http://localhost:8080/wp-json/wp/v2/users?_fields=id,name" | python3 -m json.tool
-```
+- Usuarios que intentó mi pareja: _______________
+- Número de intentos fallidos registrados: _____
 
-**Incidencia:** ambas órdenes devolvieron `Expecting value: line 1 column 1 (char 0)`, es decir, `/wp-json/` no respondía JSON porque los enlaces permanentes no están activos.
+### 10.2 Plugins (filtro «Plugins»)
 
-**Solución:** usar la ruta alternativa `?rest_route=`:
+![Actualización de plugin en Simple History](docs/img/paso10-plugins.png)
 
-```bash
-curl -s "http://localhost:8080/?rest_route=/wp/v2/posts" | python3 -m json.tool
-```
+- Plugin: _______________  Versión antigua: _____  Versión nueva: _____
 
-Con ella la API devolvió las entradas en JSON (campos `id`, `title`, `content`, `author`, `categories`, `_links`…).
+### 10.3 Comparativa nginx vs. Simple History
 
-## Paso 7 · SQL: exportar una tabla y entender el riesgo
-
-```bash
-docker compose exec -T db sh -c \
- 'mariadb-dump --no-tablespaces -u"$WP_DB_USER" -p"$WP_DB_PASSWORD" "$WP_DB_NAME" wp_users' \
- > exportaciones/wp_users.sql
-grep -o "'\$wp\$[^']*'" exportaciones/wp_users.sql | head -3
-```
-
-**Resultado:** el volcado contiene las contraseñas cifradas con bcrypt (cadenas que empiezan por `$wp$2y$10$…`). No se pueden descifrar, pero sí atacar por fuerza bruta si alguien obtiene el fichero.
-
-**Por qué `backups/` y `exportaciones/` están en `.gitignore`:** para que estos ficheros nunca se publiquen en el repositorio. Se comprobó con `git status`: ninguna de las dos carpetas aparece.
-
-## Paso 8 · Intercambio con la pareja
-
-> **Pendiente de documentar.** Este paso se hace desde el panel y no aparece en la salida de comandos.
-
-1. Crear una entrada en la categoría **Prácticas** que explique en cinco líneas para qué sirve cada formato.
-2. Exportarla desde *Herramientas → Exportar → Entradas → Categoría: Prácticas*.
-3. Pasar el fichero a la pareja.
-4. Importar el fichero de la pareja desde *Herramientas → Importar → WordPress*.
-
-## Control de versiones
-
-```bash
-git add .
-git commit -m "practica 3 importar e exportar"
-git push origin sesion16
-```
-
-Commit `cb62f2d` en la rama `sesion16` con `datos/contenidos_asir.xml` y `datos/usuarios.csv`.
-
-## Incidencias y soluciones
-
-| Problema | Causa | Solución |
+| | Log de nginx | Simple History |
 |---|---|---|
-| `cp: Permiso denegado` al copiar a `datos/` | La carpeta pertenece a otro usuario (contenedor) | `sudo cp ...` |
-| `Expecting value` con `/wp-json/` | Enlaces permanentes no activos | Usar `/?rest_route=/wp/v2/posts` |
-| `git commit` sin cambios | Los ficheros no estaban añadidos al índice | `git add .` antes del commit |
-| `git push`: `Connection timed out` (puerto 22) | Fallo de red puntual | Repetir el `push`, que funcionó al segundo intento |
+| ¿Qué sabe? | | |
+| ¿Qué NO sabe? | | |
+| ¿Identifica al usuario de WordPress? | | |
+| ¿Identifica la IP? | | |
+| ¿Registra cambios (p. ej. versión de un plugin)? | | |
+
+**Pregunta:** ¿Por qué un informe de accesos completo debe usar los dos registros?
+
+_(Tu respuesta)_
+
+---
+
+## Paso 11 · Cierre del bloque: informe y pull request
+
+```bash
+git add INFORME_RA3.md scripts/ README.md
+git commit -m "RA3: informe de administración"
+git push
+```
+
+```text
+(pega aquí la salida)
+```
+
+- ☐ Todas las secciones de `INFORME_RA3.md` completadas
+- ☐ Pull request abierta de `ra3-admin` hacia `main`
+- ☐ Título: «RA3 · Administración del gestor de contenidos»
+- ☐ Descripción con enlace a `INFORME_RA3.md`
+- ☐ `backups/`, `logs/`, `informes/` y `exportaciones/` **no** aparecen en los cambios
+- ☐ Stack en marcha / codespace disponible para la revisión
+
+**Enlace a la pull request:** _______________________
+
+---
 
 ## Conclusiones
 
-- **WXR** es el formato adecuado para mover contenido (entradas, páginas, términos) entre WordPress.
-- **CSV** es cómodo para usuarios y listados, pero solo representa una tabla.
-- **JSON** permite integrar el sitio con otras aplicaciones y es de lectura pública para el contenido publicado.
-- **SQL** es la copia más completa, y por eso la más delicada: contiene los hashes de contraseñas y debe protegerse y excluirse del repositorio.
+### Resumen de lo realizado
+
+_(Qué has actualizado, en qué orden y por qué.)_
+
+### Dificultades encontradas
+
+_(Errores, soluciones aplicadas y qué harías distinto.)_
+
+### Aprendizajes clave
+
+- Actualizar una capa cada vez permite saber qué ha provocado un fallo.
+- _(Añade los tuyos)_
+
+---
+
+## Anexo · Chuleta de órdenes del bloque
+
+| Orden | Para qué |
+|---|---|
+| `./wp user list` | Usuarios |
+| `./wp user create U correo --role=R` | Crear usuario |
+| `./wp role list` · `./wp cap list R` | Roles y capacidades |
+| `./wp plugin list` · `install X --activate` · `delete X` | Plugins |
+| `./scripts/backup.sh` | Copia de seguridad |
+| `./scripts/restore.sh [FECHA]` | Restaurar |
+| `./wp export --stdout > f.xml` | Exportar WXR |
+| `./wp import /datos/f.xml --authors=create` | Importar WXR |
+| `./wp user import-csv /datos/f.csv` | Importar usuarios |
+| `./wp theme list` · `./wp scaffold child-theme …` | Temas |
+| `curl -s localhost:8080/feed/` | Ver el canal RSS |
+| `./wp core check-update` · `update --minor` | Núcleo |
+| `./wp core verify-checksums` | Integridad del núcleo |
+| `tail -f logs/access.log` | Visitas en directo |
+| `./scripts/informe-accesos.sh` | Informe de accesos |
